@@ -204,7 +204,7 @@ if "compute_btn" in locals() and compute_btn:
         ef_val, breakdown = ef_from_mass(mass_percent, rho_gas)
 
     # EF reported as т CO2 / тыс. м3
-    st.success(f"Коэффициент EF_CO₂ = {ef_val} т CO₂ / тыс. м³")
+    st.success(f"Коэффициент EF_CO₂ = {ef_val:.5f} т CO₂ / тыс. м³")
 
     # Расчёт суммарных выбросов
     if volume_unit == "м³":
