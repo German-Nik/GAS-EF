@@ -99,12 +99,12 @@ with col1:
     # ---- Сумма введённых долей ----
     sum_val = sum(r["val"] for r in rows)
     col_sum1, col_sum2 = st.columns([1, 3])
-    col_sum1.metric("Сумма долей", f"{sum_val:.2f} %")
+    col_sum1.metric("Сумма долей", f"{sum_val:.3f} %")
 
     if abs(sum_val - 100) < 1e-6:
         col_sum2.success("✅ Сумма = 100 %")
     else:
-        col_sum2.warning(f"⚠️ Сумма отличается от 100 % на {sum_val-100:+.2f} %")
+        col_sum2.warning(f"⚠️ Сумма отличается от 100 % на {sum_val-100:+.3f} %")
 
     # --- выбор условий для плотности CO2 ---
     temp_choice = st.selectbox(
