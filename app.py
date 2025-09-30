@@ -1,7 +1,5 @@
-# app.py
 import os
 import sys
-import importlib
 
 import streamlit as st
 import pandas as pd
@@ -10,7 +8,6 @@ import pandas as pd
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 # Импорты модуля расчётов
-# ожидается, что у вас в src/ghg_emission_calc есть chem_data.py, calculator.py, constants.py
 import ghg_emission_calc.chem_data as chem_data_module
 from ghg_emission_calc.chem_data import COMPONENT_DB as BASE_COMPONENT_DB
 from ghg_emission_calc.calculator import (
@@ -51,6 +48,7 @@ st.markdown(
 
 st.title("Калькулятор выбросов CO₂ для газообразного топлива (Приказ №371)")
 st.markdown("## * Приложение для учебных целей «Академии КарбонЛаб»")
+
 # ---------- Layout ----------
 col1, col2 = st.columns([2, 1])
 
@@ -67,14 +65,20 @@ with col1:
     st.markdown("**Ввод компонентов** (выберите из базы или 'Пользовательский'). Нулевые доли игнорируются.")
     rows = []
     for i in range(int(n)):
-        # 5 колонок: выбор компонента, доля, (пользовательский) имя, M, nC
         c0, c1, c2, c3, c4 = st.columns([2, 1, 1, 1, 1])
         comp = c0.selectbox(
             f"Компонент {i+1}",
             options=list(BASE_COMPONENT_DB.keys()) + ["Пользовательский"],
             key=f"comp_select_{i}",
         )
-        val = c1.number_input("Доля (%)", min_value=0.0, max_value=100.0, value=0.0, key=f"comp_val_{i}",format="%.4f")
+        val = c1.number_input(
+            "Доля (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            key=f"comp_val_{i}",
+            format="%.4f",
+        )
 
         if comp == "Пользовательский":
             cname = c2.text_input("Имя", value=f"X{i+1}", key=f"comp_name_{i}")
@@ -82,10 +86,9 @@ with col1:
             cnc = c4.number_input("nC", min_value=0, value=0, step=1, key=f"comp_nC_{i}")
             rows.append({"name": cname.strip() or f"X{i+1}", "val": float(val), "M": float(cM), "nC": int(cnc)})
         else:
-            # показать справочные M и nC (не редактируемые)
             c2.write(f"M = {BASE_COMPONENT_DB[comp]['M']}")
             c3.write(f"nC = {BASE_COMPONENT_DB[comp]['nC']}")
-            c4.write("")  # пустая ячейка
+            c4.write("")
             rows.append(
                 {
                     "name": comp,
@@ -95,7 +98,6 @@ with col1:
                 }
             )
 
-    normalize = st.checkbox("Нормировать доли до 100% (если сумма ≠ 100%)", value=True)
     # ---- Сумма введённых долей ----
     sum_val = sum(r["val"] for r in rows)
     col_sum1, col_sum2 = st.columns([1, 3])
@@ -104,9 +106,9 @@ with col1:
     if abs(sum_val - 100) < 1e-6:
         col_sum2.success("✅ Сумма = 100 %")
     else:
-        col_sum2.warning(f"⚠️ Сумма отличается от 100 % на {sum_val-100:+.3f} %")
+        col_sum2.info(f"ℹ️ Сумма отличается от 100 % на {sum_val-100:+.3f} %")
 
-    # --- выбор условий для плотности CO2 ---
+    # --- выбор условий для плотности CO₂ ---
     temp_choice = st.selectbox(
         "Условия измерения (для плотности CO₂)",
         [
@@ -130,9 +132,7 @@ with col1:
     volume_value = st.number_input("Введите объём газа", min_value=0.0, value=1000.0, step=100.0)
     volume_unit = st.radio("Единицы объёма", ["м³", "тыс. м³"], horizontal=True)
 
-    # Кнопка вычисления — обязательно создаём её здесь, чтобы переменная была доступна ниже
     compute_btn = st.button("🔥 Вычислить выбросы CO₂", key="compute_btn")
-
 
 with col2:
     st.markdown("### База компонентов (справочно)")
@@ -157,7 +157,7 @@ with col2:
 
 # ----------------- Обработка клика -----------------
 if "compute_btn" in locals() and compute_btn:
-    # Собираем и суммируем одноимённые компоненты
+    # Собираем компоненты
     temp = {}
     for r in rows:
         name = r["name"]
@@ -172,33 +172,21 @@ if "compute_btn" in locals() and compute_btn:
         st.error("Нет введённых компонентов с ненулевой долей.")
         st.stop()
 
-    # Нормировка долей (если нужно)
-    if normalize:
-        s = sum(v["val"] for v in temp.values())
-        if s == 0:
-            st.error("Сумма долей равна нулю.")
-            st.stop()
-        for k in temp:
-            temp[k]["val"] = temp[k]["val"] / s * 100.0
-
-    # Обновляем модуль chem_data динамически для пользовательских компонентов
+    # Обновляем базу для пользовательских компонентов
     custom_to_add = {}
     for name, info in temp.items():
         if name not in chem_data_module.COMPONENT_DB:
             custom_to_add[name] = {"M": info["M"], "nC": info["nC"]}
 
     if custom_to_add:
-        # добавляем кастомные компоненты в глобальную базу модуля
         chem_data_module.COMPONENT_DB.update(custom_to_add)
 
-    # Формируем словарь долей для передачи в функции
+    # --- Расчёт EF ---
     if units.startswith("Моляр"):
-        # mol% expect names -> percentage numbers
         mol_percent = {name: info["val"] for name, info in temp.items()}
         ef_val, breakdown = ef_from_molar(mol_percent, rho_co2)
     else:
         mass_percent = {name: info["val"] for name, info in temp.items()}
-        # если пользователь не предоставил плотность газа, оценим её через состав
         mol_frac_decimal = molar_frac_from_mass_frac(mass_percent)
         rho_gas = compute_gas_density_from_molar(mol_frac_decimal, T_k)
         ef_val, breakdown = ef_from_mass(mass_percent, rho_gas)
@@ -215,5 +203,5 @@ if "compute_btn" in locals() and compute_btn:
     emissions = ef_val * volume_thousand  # т CO2
 
     st.markdown(
-    f"### 💨 Итоговые выбросы CO₂: **{emissions:.3f} т** при сжигании **{volume_value} {volume_unit}** топлива *«{fuel_name}»*"
-)
+        f"### 💨 Итоговые выбросы CO₂: **{emissions:.3f} т** при сжигании **{volume_value} {volume_unit}** топлива *«{fuel_name}»*"
+    )
