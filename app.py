@@ -74,7 +74,7 @@ with col1:
             options=list(BASE_COMPONENT_DB.keys()) + ["Custom"],
             key=f"comp_select_{i}",
         )
-        val = c1.number_input("Доля (%)", min_value=0.0, max_value=100.0, value=0.0, key=f"comp_val_{i}")
+        val = c1.number_input("Доля (%)", min_value=0.0, max_value=100.0, value=0.0, key=f"comp_val_{i}",format="%.4f")
 
         if comp == "Custom":
             cname = c2.text_input("Имя", value=f"X{i+1}", key=f"comp_name_{i}")
