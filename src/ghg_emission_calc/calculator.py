@@ -33,19 +33,24 @@ def ef_from_molar(molar_frac_percent: Dict[str, float], rho_co2_kg_m3: float) ->
     EF (t CO2 / 1000 m3) from molar composition given in percent.
     Returns (EF, breakdown_by_component)
     """
-    # УБИРАЕМ нормализацию - используем введенные значения как есть
-    w_dec = {c: molar_frac_percent[c] / 100.0 for c in molar_frac_percent}
+    # Формула МПР 371: EF = Σ(W_i × nC_i) × ρ_CO₂ × 10^(-2)
+    # где W_i - молярные доли в процентах
 
     sum_nc = 0.0
     contributions = {}
-    for c, w in w_dec.items():
-        nC = COMPONENT_DB.get(c, {}).get("nC", 0)
-        contrib = rho_co2_kg_m3 * w * nC  # kg/m3
-        contributions[c] = contrib  # kg/m3
-        sum_nc += w * nC
+    for comp, w_percent in molar_frac_percent.items():
+        nC = COMPONENT_DB.get(comp, {}).get("nC", 0)
+        # W_i × nC_i (уже в процентах!)
+        contrib = w_percent * nC
+        contributions[comp] = contrib
+        sum_nc += contrib
 
-    ef_t_per_1000m3 = rho_co2_kg_m3 * sum_nc  # kg/m3 -> equals t/1000 m3 numerically
-    contributions_t_per_1000m3 = {c: v for c, v in contributions.items()}
+    # Σ(W_i × nC_i) × ρ_CO₂ × 10^(-2)
+    ef_t_per_1000m3 = sum_nc * rho_co2_kg_m3 * 0.01
+
+    # Для breakdown тоже пересчитываем в итоговые выбросы
+    contributions_t_per_1000m3 = {comp: contrib * rho_co2_kg_m3 * 0.01
+                                 for comp, contrib in contributions.items()}
 
     return float(ef_t_per_1000m3), {c: float(contributions_t_per_1000m3[c]) for c in contributions_t_per_1000m3}
 
@@ -55,19 +60,26 @@ def ef_from_mass(mass_frac_percent: Dict[str, float],
     EF (t CO2 / 1000 m3) from mass composition (percent).
     Returns (EF, breakdown_by_component)
     """
-    # УБИРАЕМ нормализацию - используем введенные значения как есть
-    w_dec = {c: mass_frac_percent[c] / 100.0 for c in mass_frac_percent}
+    # Формула МПР 371: EF = Σ(W_i × nC_i × 44.011 / M_i) × ρ_газа × 10^(-2)
+    # где W_i - массовые доли в процентах
 
     s = 0.0
     contributions = {}
-    for c, w in w_dec.items():
-        if c not in COMPONENT_DB:
-            raise KeyError(f"Unknown component '{c}' — требуется molar mass и nC.")
-        nC = COMPONENT_DB[c]["nC"]
-        M = COMPONENT_DB[c]["M"]  # g/mol
-        term = w * nC * (M_CO2 / M)
-        contributions[c] = rho_gas_kg_m3 * term  # kg/m3 -> t/1000m3
+    for comp, w_percent in mass_frac_percent.items():
+        if comp not in COMPONENT_DB:
+            raise KeyError(f"Unknown component '{comp}' — требуется molar mass и nC.")
+        nC = COMPONENT_DB[comp]["nC"]
+        M = COMPONENT_DB[comp]["M"]  # g/mol
+        # W_i × nC_i × 44.011 / M_i (уже в процентах!)
+        term = w_percent * nC * (M_CO2 / M)
+        contributions[comp] = term
         s += term
 
-    ef_t_per_1000m3 = rho_gas_kg_m3 * s
-    return float(ef_t_per_1000m3), {c: float(contributions[c]) for c in contributions}
+    # Σ(W_i × nC_i × 44.011 / M_i) × ρ_газа × 10^(-2)
+    ef_t_per_1000m3 = s * rho_gas_kg_m3 * 0.01
+
+    # Для breakdown тоже пересчитываем в итоговые выбросы
+    contributions_t_per_1000m3 = {comp: term * rho_gas_kg_m3 * 0.01
+                                 for comp, term in contributions.items()}
+
+    return float(ef_t_per_1000m3), {c: float(contributions_t_per_1000m3[c]) for c in contributions}
