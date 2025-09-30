@@ -62,7 +62,7 @@ with col1:
         ["Молярные доли (об.% / мол.%)", "Массовые доли (мас.%)"],
     )
 
-    n = st.number_input("Сколько компонентов ввести?", min_value=1, max_value=12, value=3, step=1)
+    n = st.number_input("Сколько компонентов ввести?", min_value=1, max_value=16, value=3, step=1)
 
     st.markdown("**Ввод компонентов** (выберите из базы или 'Custom'). Нулевые доли игнорируются.")
     rows = []
