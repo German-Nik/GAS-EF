@@ -64,19 +64,19 @@ with col1:
 
     n = st.number_input("Сколько компонентов ввести?", min_value=1, max_value=16, value=3, step=1)
 
-    st.markdown("**Ввод компонентов** (выберите из базы или 'Custom'). Нулевые доли игнорируются.")
+    st.markdown("**Ввод компонентов** (выберите из базы или 'Пользовательский'). Нулевые доли игнорируются.")
     rows = []
     for i in range(int(n)):
-        # 5 колонок: выбор компонента, доля, (custom) имя, M, nC
+        # 5 колонок: выбор компонента, доля, (пользовательский) имя, M, nC
         c0, c1, c2, c3, c4 = st.columns([2, 1, 1, 1, 1])
         comp = c0.selectbox(
             f"Компонент {i+1}",
-            options=list(BASE_COMPONENT_DB.keys()) + ["Custom"],
+            options=list(BASE_COMPONENT_DB.keys()) + ["Пользовательский"],
             key=f"comp_select_{i}",
         )
         val = c1.number_input("Доля (%)", min_value=0.0, max_value=100.0, value=0.0, key=f"comp_val_{i}",format="%.4f")
 
-        if comp == "Custom":
+        if comp == "Пользовательский":
             cname = c2.text_input("Имя", value=f"X{i+1}", key=f"comp_name_{i}")
             cM = c3.number_input("M (г/моль)", min_value=0.0, value=44.01, key=f"comp_M_{i}")
             cnc = c4.number_input("nC", min_value=0, value=0, step=1, key=f"comp_nC_{i}")
@@ -181,7 +181,7 @@ if "compute_btn" in locals() and compute_btn:
         for k in temp:
             temp[k]["val"] = temp[k]["val"] / s * 100.0
 
-    # Обновляем модуль chem_data динамически для custom компонентов
+    # Обновляем модуль chem_data динамически для пользовательских компонентов
     custom_to_add = {}
     for name, info in temp.items():
         if name not in chem_data_module.COMPONENT_DB:
