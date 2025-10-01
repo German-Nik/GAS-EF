@@ -187,9 +187,7 @@ if "compute_btn" in locals() and compute_btn:
         ef_val, breakdown = ef_from_molar(mol_percent, rho_co2)
     else:
         mass_percent = {name: info["val"] for name, info in temp.items()}
-        mol_frac_decimal = molar_frac_from_mass_frac(mass_percent)
-        rho_gas = compute_gas_density_from_molar(mol_frac_decimal, T_k)
-        ef_val, breakdown = ef_from_mass(mass_percent, rho_gas)
+        ef_val, breakdown = ef_from_mass(mass_percent, rho_co2)
 
     # EF reported as т CO2 / тыс. м3
     st.success(f"Коэффициент EF_CO₂ = {ef_val:.5f} т CO₂ / тыс. м³")
