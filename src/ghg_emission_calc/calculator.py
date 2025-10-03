@@ -70,7 +70,7 @@ def ef_from_mass(mass_frac_percent: Dict[str, float],
             raise KeyError(f"Unknown component '{comp}' — требуется molar mass и nC.")
         nC = COMPONENT_DB[comp]["nC"]
         M = COMPONENT_DB[comp]["M"]  # g/mol
-        # W_i × nC_i × 44.011 / M_i (уже в процентах!)
+        # W_i × nC_i × 44.011 / M_i
         term = w_percent * nC * (M_CO2 / M)
         contributions[comp] = term
         s += term

@@ -64,13 +64,25 @@ with col1:
 
     st.markdown("**Ввод компонентов** (выберите из базы или 'Пользовательский'). Нулевые доли игнорируются.")
     rows = []
+
+  # список: Название + формула
+    all_options = [f"{v['name']} ({k})" for k, v in BASE_COMPONENT_DB.items()] + ["Пользовательский"]
+    mapping = {f"{v['name']} ({k})": k for k, v in BASE_COMPONENT_DB.items()}
+
+    used = set()  # сюда будем складывать выбранные варианты
+
     for i in range(int(n)):
+    # доступные варианты = все минус уже выбранные (но "Пользовательский" всегда оставляем)
+        available = [opt for opt in all_options if opt == "Пользовательский" or opt not in used]
+
         c0, c1, c2, c3, c4 = st.columns([2, 1, 1, 1, 1])
-        comp = c0.selectbox(
+        comp_display = c0.selectbox(
             f"Компонент {i+1}",
-            options=list(BASE_COMPONENT_DB.keys()) + ["Пользовательский"],
+            options=available,
             key=f"comp_select_{i}",
         )
+        used.add(comp_display)
+
         val = c1.number_input(
             "Доля (%)",
             min_value=0.0,
@@ -80,24 +92,28 @@ with col1:
             format="%.4f",
         )
 
-        if comp == "Пользовательский":
+        if comp_display == "Пользовательский":
             cname = c2.text_input("Имя", value=f"X{i+1}", key=f"comp_name_{i}")
             cM = c3.number_input("M (г/моль)", min_value=0.0, value=44.01, key=f"comp_M_{i}")
             cnc = c4.number_input("nC", min_value=0, value=0, step=1, key=f"comp_nC_{i}")
-            rows.append({"name": cname.strip() or f"X{i+1}", "val": float(val), "M": float(cM), "nC": int(cnc)})
+            rows.append({
+                "name": cname.strip() or f"X{i+1}",
+                "val": float(val),
+                "M": float(cM),
+                "nC": int(cnc)
+            })
         else:
-            c2.write(f"M = {BASE_COMPONENT_DB[comp]['M']}")
-            c3.write(f"nC = {BASE_COMPONENT_DB[comp]['nC']}")
+            comp = mapping[comp_display]  # формула (ключ)
+            comp_info = BASE_COMPONENT_DB[comp]
+            c2.write(f"M = {comp_info['M']}")
+            c3.write(f"nC = {comp_info['nC']}")
             c4.write("")
-            rows.append(
-                {
-                    "name": comp,
-                    "val": float(val),
-                    "M": float(BASE_COMPONENT_DB[comp]["M"]),
-                    "nC": int(BASE_COMPONENT_DB[comp]["nC"]),
-                }
-            )
-
+            rows.append({
+                "name": comp,
+                "val": float(val),
+                "M": float(comp_info["M"]),
+                "nC": int(comp_info["nC"])
+            })
     # ---- Сумма введённых долей ----
     sum_val = sum(r["val"] for r in rows)
     col_sum1, col_sum2 = st.columns([1, 3])
@@ -138,7 +154,12 @@ with col2:
     st.markdown("### База компонентов (справочно)")
     df_comp = pd.DataFrame(
         [
-            {"Компонент": k, "M (г/моль)": v["M"], "nC": v["nC"]}
+            {
+                "Формула": k,
+                "Название": v["name"],
+                "M (г/моль)": v["M"],
+                "nC": v["nC"],
+            }
             for k, v in BASE_COMPONENT_DB.items()
         ]
     )
