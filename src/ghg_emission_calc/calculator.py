@@ -2,7 +2,7 @@ from typing import Dict, Tuple
 import math
 
 from ghg_emission_calc.chem_data import COMPONENT_DB
-from ghg_emission_calc.constants import R, M_CO2, M_TO_KG, STANDARD_PRESSURE_PA
+from ghg_emission_calc.constants import M_CO2, M_TO_KG, STANDARD_PRESSURE_PA
 
 def molar_frac_from_mass_frac(mass_frac_percent: Dict[str, float]) -> Dict[str, float]:
     """Convert mass % -> molar fraction (decimal) using molar masses from DB."""
