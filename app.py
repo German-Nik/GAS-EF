@@ -19,7 +19,7 @@ from ghg_emission_calc.calculator import (
 from ghg_emission_calc.constants import CO2_DENSITIES
 
 # ----------------- Стилизация (красные тона) -----------------
-st.set_page_config(page_title="GHG EF — газ (Методика 371)", layout="wide")
+st.set_page_config(page_title="GHG EF — газ (Методика №371)", layout="wide")
 st.markdown(
     """
     <style>
@@ -46,7 +46,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("Калькулятор выбросов CO₂ для газообразного топлива на основе компонентного состава (Методика МПР №371)")
+st.title("Калькулятор выбросов CO₂ для газообразного топлива ")
+st.markdown("### С использованием коэффициента выбросов, определенного на основе компонентного состава топлива, Методика МПР №371")
 st.markdown("## * Разработано ООО «КарбонЛаб»")
 
 # ---------- Layout ----------
