@@ -1,28 +1,22 @@
 import os
 import sys
-import streamlit as st
-import pandas as pd
 
-# --- чтобы Python видел папку src ---
+import pandas as pd
+import streamlit as st
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-# Импорты модуля расчётов
-import ghg_emission_calc.chem_data as chem_data_module
 from ghg_emission_calc.chem_data import COMPONENT_DB as BASE_COMPONENT_DB
-from ghg_emission_calc.calculator import (
-    ef_from_molar,
-    ef_from_mass,
-)
+from ghg_emission_calc.calculator import ef_from_molar, ef_from_mass
 from ghg_emission_calc.constants import CO2_DENSITIES
 
-# ----------- Форматирование чисел -----------
+
 def fmt(num, decimals=3):
-    """Форматирование чисел с запятой в качестве разделителя"""
     if isinstance(num, (int, float)):
         return f"{num:.{decimals}f}".replace(".", ",")
     return str(num)
 
-# ----------------- Стилизация (красные тона) -----------------
+
 st.set_page_config(page_title="GHG EF — газ (Методика №371)", layout="wide")
 st.markdown(
     """
@@ -50,11 +44,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("Калькулятор выбросов CO₂ для газообразного топлива ")
+st.title("Калькулятор выбросов CO₂ для газообразного топлива")
 st.markdown("### С использованием коэффициента выбросов, определенного на основе компонентного состава топлива, Методика МПР №371")
 st.markdown("## * Разработано ООО «КарбонЛаб»")
 
-# ---------- Layout ----------
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -70,14 +63,12 @@ with col1:
     st.markdown("**Ввод компонентов** (выберите из базы или 'Пользовательский'). Нулевые доли игнорируются.")
     rows = []
 
-    # список для выбора: Название + формула
-    all_options = [f"{v['name']} ({k})" for k, v in BASE_COMPONENT_DB.items()] + ["Пользовательский"]
-    mapping = {f"{v['name']} ({k})": k for k, v in BASE_COMPONENT_DB.items()}
+    all_options = [f"{v.get('name', k)} ({k})" for k, v in BASE_COMPONENT_DB.items()] + ["Пользовательский"]
+    mapping = {f"{v.get('name', k)} ({k})": k for k, v in BASE_COMPONENT_DB.items()}
 
-    used = set()  # чтобы не выбирать повторно
+    used = set()
 
     for i in range(int(n)):
-        # доступные варианты = все минус уже выбранные (но 'Пользовательский' всегда остаётся)
         available = [opt for opt in all_options if opt == "Пользовательский" or opt not in used]
 
         c0, c1, c2, c3, c4 = st.columns([2, 1, 1, 1, 1])
@@ -101,28 +92,34 @@ with col1:
 
         if comp_display == "Пользовательский":
             cname = c2.text_input("Имя", value=f"X{i+1}", key=f"comp_name_{i}")
-            cM = c3.number_input("M (г/моль)", min_value=0.0, value=44.01, key=f"comp_M_{i}")
+            cM = c3.number_input("M (г/моль)", min_value=0.0, value=44.01, key=f"comp_M_{i}", format="%.5f")
             cnc = c4.number_input("nC", min_value=0, value=0, step=1, key=f"comp_nC_{i}")
-            rows.append({
-                "name": cname.strip() or f"X{i+1}",
-                "val": float(val),
-                "M": float(cM),
-                "nC": int(cnc)
-            })
+            custom_name = cname.strip() or f"X{i+1}"
+            rows.append(
+                {
+                    "name": custom_name,
+                    "display_name": custom_name,
+                    "val": float(val),
+                    "M": float(cM),
+                    "nC": int(cnc),
+                }
+            )
         else:
-            comp = mapping[comp_display]  # формула (ключ)
+            comp = mapping[comp_display]
             comp_info = BASE_COMPONENT_DB[comp]
             c2.write(f"M = {fmt(comp_info['M'], 2)}")
             c3.write(f"nC = {comp_info['nC']}")
             c4.write("")
-            rows.append({
-                "name": comp,
-                "val": float(val),
-                "M": float(comp_info["M"]),
-                "nC": int(comp_info["nC"])
-            })
+            rows.append(
+                {
+                    "name": comp,
+                    "display_name": comp_info.get("name", comp),
+                    "val": float(val),
+                    "M": float(comp_info["M"]),
+                    "nC": int(comp_info["nC"]),
+                }
+            )
 
-    # ---- Сумма введённых долей ----
     sum_val = sum(r["val"] for r in rows)
     col_sum1, col_sum2 = st.columns([1, 3])
     col_sum1.metric("Сумма долей", f"{fmt(sum_val)} %")
@@ -132,7 +129,6 @@ with col1:
     else:
         col_sum2.info(f"ℹ️ Сумма отличается от 100 % на {fmt(sum_val - 100)} %")
 
-    # --- выбор условий для плотности CO₂ ---
     temp_choice = st.selectbox(
         "Условия измерения (для плотности CO₂)",
         [
@@ -162,7 +158,7 @@ with col2:
         [
             {
                 "Формула": k,
-                "Название": v["name"],
+                "Название": v.get("name", k),
                 "M (г/моль)": fmt(v["M"], 2),
                 "nC": v["nC"],
             }
@@ -182,42 +178,50 @@ with col2:
     st.latex(r"E_{CO_{2},y} = \sum_{j=1}^{n} \left( FC_{j,y} \times EF_{CO_{2},j,y} \times OF_{j,y} \right)")
     st.caption("Расчёт массы выбросов CO₂ при сжигании объёма топлива")
 
-# ----------------- Обработка клика -----------------
 if "compute_btn" in locals() and compute_btn:
-    # Собираем компоненты
     temp = {}
     for r in rows:
         if r["val"] <= 0:
             continue
-        name = r["name"]
-        temp[name] = {"val": r["val"], "M": r["M"], "nC": r["nC"]}
+        temp[r["name"]] = {
+            "val": r["val"],
+            "M": r["M"],
+            "nC": r["nC"],
+            "display_name": r.get("display_name", r["name"]),
+        }
 
     if not temp:
         st.error("Нет введённых компонентов с ненулевой долей.")
         st.stop()
 
-    # Добавляем пользовательские компоненты в базу
-    for name, info in temp.items():
-        if name not in chem_data_module.COMPONENT_DB:
-            chem_data_module.COMPONENT_DB[name] = {"M": info["M"], "nC": info["nC"]}
+    working_component_db = {
+        **BASE_COMPONENT_DB,
+        **{
+            name: {
+                "name": info.get("display_name", name),
+                "M": info["M"],
+                "nC": info["nC"],
+            }
+            for name, info in temp.items()
+            if name not in BASE_COMPONENT_DB
+        },
+    }
 
-    # Расчёт EF
     if units.startswith("Моляр"):
         mol_percent = {name: info["val"] for name, info in temp.items()}
-        ef_val, _ = ef_from_molar(mol_percent, rho_co2)
+        ef_val, _ = ef_from_molar(mol_percent, rho_co2, component_db=working_component_db)
     else:
         mass_percent = {name: info["val"] for name, info in temp.items()}
-        ef_val, _ = ef_from_mass(mass_percent, rho_co2)
+        ef_val, _ = ef_from_mass(mass_percent, rho_co2, component_db=working_component_db)
 
     st.success(f"Коэффициент EF_CO₂ = {fmt(ef_val, 5)} т CO₂ / тыс. м³")
 
-    # Расчёт выбросов
     if volume_unit == "м³":
         volume_thousand = volume_value / 1000.0
     else:
         volume_thousand = volume_value
 
-    emissions = ef_val * volume_thousand  # т CO2
+    emissions = ef_val * volume_thousand
 
     st.markdown(
         f"### 💨 Итоговые выбросы CO₂: **{fmt(emissions)} т** при сжигании **{fmt(volume_value)} {volume_unit}** топлива *«{fuel_name}»*"
